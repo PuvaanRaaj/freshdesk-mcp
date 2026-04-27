@@ -11,6 +11,10 @@ class FreshdeskSettingsTests(unittest.TestCase):
         settings = FreshdeskSettings(api_key="abc", domain="example.freshdesk.com")
         self.assertEqual(settings.base_url, "https://example.freshdesk.com")
 
+    def test_bare_subdomain_expands_to_freshdesk_hostname(self) -> None:
+        settings = FreshdeskSettings(api_key="abc", domain="razer-support")
+        self.assertEqual(settings.base_url, "https://razer-support.freshdesk.com")
+
     def test_domain_with_scheme_is_preserved(self) -> None:
         settings = FreshdeskSettings(api_key="abc", domain="https://example.freshdesk.com/")
         self.assertEqual(settings.base_url, "https://example.freshdesk.com")

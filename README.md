@@ -2,7 +2,7 @@
 
 Freshdesk MCP server for ticket operations, issue discovery, and automation-rule switching.
 
-The server reads `FRESHDESK_API_KEY` and `FRESHDESK_DOMAIN` from process environment variables and now also supports loading them from a local `.env` file.
+The server reads `FRESHDESK_API_KEY` and `FRESHDESK_DOMAIN` from process environment variables and also supports loading them from a local `.env` file.
 
 ## What This Covers
 
@@ -26,6 +26,7 @@ The server looks for these values at startup:
 
 Examples for `FRESHDESK_DOMAIN`:
 
+- `razer-support`
 - `yourcompany.freshdesk.com`
 - `https://yourcompany.freshdesk.com`
 
@@ -40,6 +41,8 @@ FRESHDESK_TIMEOUT_SECONDS=30
 ```
 
 When you start `freshdesk-mcp`, it will load that `.env` file automatically.
+
+If `FRESHDESK_DOMAIN` is a bare subdomain such as `razer-support`, the server expands it to `https://razer-support.freshdesk.com`.
 
 ### Option 2: Shell Environment
 
@@ -165,6 +168,8 @@ Then verify:
 codex mcp list
 codex mcp get freshdesk
 ```
+
+Once Codex starts a new session with the `freshdesk` MCP loaded, it should call the MCP tools directly. If the MCP is not loaded in the current session, Codex may fall back to shell exploration and direct scripts, which produces much noisier step-by-step output.
 
 ### Codex Config File
 

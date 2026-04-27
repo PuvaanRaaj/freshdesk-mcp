@@ -56,6 +56,8 @@ export FRESHDESK_API_KEY="your_api_key"
 export FRESHDESK_DOMAIN="razer-support"
 ```
 
+The bare subdomain form is supported and resolves to `https://razer-support.freshdesk.com`.
+
 3. Add the MCP server to Claude Desktop.
 
 macOS or Linux:

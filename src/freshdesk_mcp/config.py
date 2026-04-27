@@ -24,7 +24,10 @@ class FreshdeskSettings:
             raise ConfigurationError("FRESHDESK_DOMAIN is empty.")
         if domain.startswith("http://") or domain.startswith("https://"):
             return domain.rstrip("/")
-        return f"https://{domain.rstrip('/')}"
+        normalized = domain.rstrip("/")
+        if "." not in normalized:
+            normalized = f"{normalized}.freshdesk.com"
+        return f"https://{normalized}"
 
     @classmethod
     def from_env(cls, env: Mapping[str, str] | None = None) -> "FreshdeskSettings":
