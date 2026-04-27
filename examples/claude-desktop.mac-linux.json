@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "freshdesk": {
+      "command": "uv",
+      "args": ["--directory", "/absolute/path/to/freshdesk-mcp", "run", "freshdesk-mcp"]
+    }
+  }
+}

@@ -1,0 +1,7 @@
+{
+  "mcpServers": {
+    "freshdesk": {
+      "command": "C:\\Tools\\freshdesk-mcp\\scripts\\run_freshdesk_mcp.cmd"
+    }
+  }
+}
