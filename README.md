@@ -1,8 +1,8 @@
 # Freshdesk MCP
 
-Clean-room Freshdesk MCP server that reads `FRESHDESK_API_KEY` and `FRESHDESK_DOMAIN` from the process environment at runtime.
+Freshdesk MCP server for ticket operations, issue discovery, and automation-rule switching.
 
-The key point is that the MCP client config does not need to contain the API key. The server reads it internally when it starts.
+The server reads `FRESHDESK_API_KEY` and `FRESHDESK_DOMAIN` from process environment variables and now also supports loading them from a local `.env` file.
 
 ## What This Covers
 
@@ -10,14 +10,15 @@ This server exposes Freshdesk tools for:
 
 - tickets
 - ticket conversations and replies
+- issue and refund ticket discovery
 - automation rule switching for scheduled operations
 - agents
 - contacts
 - companies
 
-## Environment Variables
+## Configuration
 
-Set these in the operating system environment before starting the MCP server:
+The server looks for these values at startup:
 
 - `FRESHDESK_API_KEY`
 - `FRESHDESK_DOMAIN`
@@ -27,6 +28,30 @@ Examples for `FRESHDESK_DOMAIN`:
 
 - `yourcompany.freshdesk.com`
 - `https://yourcompany.freshdesk.com`
+
+### Option 1: `.env` File
+
+You can keep the credentials in a `.env` file at the repo root:
+
+```dotenv
+FRESHDESK_API_KEY=your_api_key
+FRESHDESK_DOMAIN=razer-support
+FRESHDESK_TIMEOUT_SECONDS=30
+```
+
+When you start `freshdesk-mcp`, it will load that `.env` file automatically.
+
+### Option 2: Shell Environment
+
+If you prefer shell variables:
+
+```bash
+export FRESHDESK_API_KEY="your_api_key"
+export FRESHDESK_DOMAIN="razer-support"
+export FRESHDESK_TIMEOUT_SECONDS="30"
+```
+
+For production or shared machines, shell environment or secret management is still the cleaner option.
 
 ## Windows Setup For Non-Technical Users
 
@@ -84,9 +109,9 @@ uv sync
 
 After that, Claude Desktop can launch the server through the `.cmd` wrapper.
 
-## macOS / Linux Setup
+## Claude Desktop Setup
 
-Set environment variables in the shell profile or launcher environment, then point your MCP client at the project:
+### macOS / Linux
 
 ```json
 {
@@ -97,6 +122,58 @@ Set environment variables in the shell profile or launcher environment, then poi
     }
   }
 }
+```
+
+### Windows
+
+Use the wrapper script:
+
+```json
+{
+  "mcpServers": {
+    "freshdesk": {
+      "command": "C:\\Tools\\freshdesk-mcp\\scripts\\run_freshdesk_mcp.cmd"
+    }
+  }
+}
+```
+
+## Codex Setup
+
+Codex supports the same server through local MCP registration.
+
+### Codex CLI Registration
+
+Make sure the repo root contains a `.env` file first:
+
+```dotenv
+FRESHDESK_API_KEY=your_api_key
+FRESHDESK_DOMAIN=razer-support
+FRESHDESK_TIMEOUT_SECONDS=30
+```
+
+Then register the MCP server without repeating the secrets on the command line:
+
+```bash
+codex mcp add freshdesk \
+  -- uv --directory /absolute/path/to/freshdesk-mcp run freshdesk-mcp
+```
+
+Then verify:
+
+```bash
+codex mcp list
+codex mcp get freshdesk
+```
+
+### Codex Config File
+
+You can also add it directly to `~/.codex/config.toml` and still rely on the repo-local `.env` file:
+
+```toml
+[mcp_servers.freshdesk]
+command = "uv"
+args = ["--directory", "/absolute/path/to/freshdesk-mcp", "run", "freshdesk-mcp"]
 ```
 
 ## Local Development
@@ -119,6 +196,10 @@ uv run freshdesk-mcp
 - `update_ticket`
 - `delete_ticket`
 - `search_tickets`
+- `search_tickets_by_type`
+- `search_tickets_by_tag`
+- `search_tickets_by_date_range`
+- `find_refund_tickets`
 - `get_ticket_fields`
 - `get_tickets`
 - `get_ticket`
@@ -170,6 +251,35 @@ Example:
 ```text
 Run freshdesk.switch_assignment_shift with shift="night"
 ```
+
+## Ticket Search Helpers
+
+This repo now includes higher-level search helpers for issue-oriented ticket discovery:
+
+- `search_tickets_by_type`
+- `search_tickets_by_tag`
+- `search_tickets_by_date_range`
+- `find_refund_tickets`
+
+Examples:
+
+```text
+Use freshdesk.find_refund_tickets with status=2.
+```
+
+```text
+Use freshdesk.search_tickets_by_type with issue_type="payment_failed" and status=2.
+```
+
+```text
+Use freshdesk.search_tickets_by_tag with tag="chargeback" and status=3.
+```
+
+```text
+Use freshdesk.search_tickets_by_date_range with field_name="created_at", start_date="2026-04-01", end_date="2026-04-30".
+```
+
+These helpers map to Freshdesk's field-based search API. In practice, refund or issue searches work best when your support process consistently uses the built-in `type` field or tags.
 
 ## Scheduler Setup Guides
 

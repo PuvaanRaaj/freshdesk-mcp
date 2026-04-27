@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+from datetime import date
 from typing import Any
 
 from mcp.server.fastmcp import FastMCP
@@ -30,6 +31,36 @@ async def _get_optional_resource(path: str) -> Any | None:
         return await _client().request("GET", path)
     except RuntimeError:
         return None
+
+
+def _format_search_value(value: str | int | bool | date) -> str:
+    if isinstance(value, bool):
+        return "true" if value else "false"
+    if isinstance(value, int):
+        return str(value)
+    if isinstance(value, date):
+        return value.isoformat()
+
+    escaped = value.replace("\\", "\\\\").replace("'", "\\'")
+    return f"'{escaped}'"
+
+
+def _build_search_clause(
+    field: str,
+    value: str | int | bool | date,
+    *,
+    operator: str = ":",
+) -> str:
+    return f"{field}{operator}{_format_search_value(value)}"
+
+
+def _combine_clauses(clauses: list[str], *, joiner: str = "AND") -> str:
+    filtered = [clause for clause in clauses if clause]
+    if not filtered:
+        raise ValueError("At least one search clause is required.")
+    if len(filtered) == 1:
+        return filtered[0]
+    return f" {joiner} ".join(filtered)
 
 
 DAY_SHIFT_RULES: tuple[tuple[int, int, bool], ...] = (
@@ -94,6 +125,88 @@ async def delete_ticket(ticket_id: int) -> Any:
 @mcp.tool()
 async def search_tickets(query: str) -> Any:
     return await _client().request("GET", "search/tickets", params={"query": query})
+
+
+@mcp.tool()
+async def search_tickets_by_type(
+    issue_type: str,
+    status: int | None = None,
+    priority: int | None = None,
+    page: int = 1,
+) -> Any:
+    clauses = [_build_search_clause("type", issue_type)]
+    if status is not None:
+        clauses.append(_build_search_clause("status", status))
+    if priority is not None:
+        clauses.append(_build_search_clause("priority", priority))
+    query = _combine_clauses(clauses)
+    return await _client().request("GET", "search/tickets", params={"query": query, "page": page})
+
+
+@mcp.tool()
+async def search_tickets_by_tag(
+    tag: str,
+    status: int | None = None,
+    priority: int | None = None,
+    page: int = 1,
+) -> Any:
+    clauses = [_build_search_clause("tag", tag)]
+    if status is not None:
+        clauses.append(_build_search_clause("status", status))
+    if priority is not None:
+        clauses.append(_build_search_clause("priority", priority))
+    query = _combine_clauses(clauses)
+    return await _client().request("GET", "search/tickets", params={"query": query, "page": page})
+
+
+@mcp.tool()
+async def search_tickets_by_date_range(
+    field_name: str,
+    start_date: str | None = None,
+    end_date: str | None = None,
+    status: int | None = None,
+    priority: int | None = None,
+    page: int = 1,
+) -> Any:
+    allowed_fields = {"created_at", "updated_at", "due_by", "fr_due_by"}
+    if field_name not in allowed_fields:
+        raise ValueError(f"field_name must be one of {sorted(allowed_fields)}")
+    if start_date is None and end_date is None:
+        raise ValueError("At least one of start_date or end_date is required.")
+
+    clauses: list[str] = []
+    if start_date is not None:
+        clauses.append(_build_search_clause(field_name, start_date, operator=":>"))
+    if end_date is not None:
+        clauses.append(_build_search_clause(field_name, end_date, operator=":<"))
+    if status is not None:
+        clauses.append(_build_search_clause("status", status))
+    if priority is not None:
+        clauses.append(_build_search_clause("priority", priority))
+    query = _combine_clauses(clauses)
+    return await _client().request("GET", "search/tickets", params={"query": query, "page": page})
+
+
+@mcp.tool()
+async def find_refund_tickets(
+    status: int | None = None,
+    priority: int | None = None,
+    page: int = 1,
+) -> Any:
+    refund_match = _combine_clauses(
+        [
+            _build_search_clause("type", "refund"),
+            _build_search_clause("tag", "refund"),
+        ],
+        joiner="OR",
+    )
+    clauses = [f"({refund_match})"]
+    if status is not None:
+        clauses.append(_build_search_clause("status", status))
+    if priority is not None:
+        clauses.append(_build_search_clause("priority", priority))
+    query = _combine_clauses(clauses)
+    return await _client().request("GET", "search/tickets", params={"query": query, "page": page})
 
 
 @mcp.tool()

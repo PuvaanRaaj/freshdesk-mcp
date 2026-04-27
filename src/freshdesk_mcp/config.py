@@ -4,6 +4,8 @@ import os
 from dataclasses import dataclass
 from typing import Mapping
 
+from dotenv import find_dotenv, load_dotenv
+
 
 class ConfigurationError(ValueError):
     pass
@@ -26,7 +28,11 @@ class FreshdeskSettings:
 
     @classmethod
     def from_env(cls, env: Mapping[str, str] | None = None) -> "FreshdeskSettings":
-        source = env if env is not None else os.environ
+        if env is None:
+            load_dotenv(find_dotenv(usecwd=True))
+            source = os.environ
+        else:
+            source = env
         api_key = source.get("FRESHDESK_API_KEY", "").strip()
         domain = source.get("FRESHDESK_DOMAIN", "").strip()
         timeout_raw = source.get("FRESHDESK_TIMEOUT_SECONDS", "30").strip()
