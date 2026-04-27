@@ -31,7 +31,7 @@ Examples for `FRESHDESK_DOMAIN`:
 
 ### Option 1: `.env` File
 
-You can keep the credentials in a `.env` file at the repo root:
+You can keep the credentials in a `.env` file at the repo root. Start from [.env.example](/Users/puvaan.shankar/programming/freshdesk-mcp/.env.example):
 
 ```dotenv
 FRESHDESK_API_KEY=your_api_key
@@ -144,7 +144,7 @@ Codex supports the same server through local MCP registration.
 
 ### Codex CLI Registration
 
-Make sure the repo root contains a `.env` file first:
+Make sure the repo root contains a `.env` file first. You can copy [.env.example](/Users/puvaan.shankar/programming/freshdesk-mcp/.env.example):
 
 ```dotenv
 FRESHDESK_API_KEY=your_api_key
