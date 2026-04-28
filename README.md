@@ -24,6 +24,8 @@ The server looks for these values at startup:
 - `FRESHDESK_DOMAIN`
 - `FRESHDESK_TIMEOUT_SECONDS` (optional, defaults to `30`)
 
+All datetime fields returned by this MCP are normalized to Malaysia time (`GMT+8`, `Asia/Kuala_Lumpur`) before they are returned to the client.
+
 Examples for `FRESHDESK_DOMAIN`:
 
 - `razer-support`
@@ -205,6 +207,9 @@ uv run freshdesk-mcp
 - `search_tickets_by_tag`
 - `search_tickets_by_date_range`
 - `find_refund_tickets`
+- `find_tickets_by_keywords`
+- `get_tickets_assigned_to_agent`
+- `get_tickets_assigned_to_agent_identifier`
 - `get_ticket_fields`
 - `get_tickets`
 - `get_ticket`
@@ -265,6 +270,7 @@ This repo now includes higher-level search helpers for issue-oriented ticket dis
 - `search_tickets_by_tag`
 - `search_tickets_by_date_range`
 - `find_refund_tickets`
+- `find_tickets_by_keywords`
 
 Examples:
 
@@ -284,7 +290,56 @@ Use freshdesk.search_tickets_by_tag with tag="chargeback" and status=3.
 Use freshdesk.search_tickets_by_date_range with field_name="created_at", start_date="2026-04-01", end_date="2026-04-30".
 ```
 
+```text
+Use freshdesk.find_tickets_by_keywords with keywords=["invalid captcha", "merchant portal"], start_at="2026-04-28T00:00:00+08:00", end_at="2026-04-28T23:59:59+08:00", time_field="created_at", match_all=false.
+```
+
 These helpers map to Freshdesk's field-based search API. In practice, refund or issue searches work best when your support process consistently uses the built-in `type` field or tags.
+
+`find_tickets_by_keywords` is the preferred tool when you want a direct answer to questions like "are there any tickets today about invalid captcha in merchant portal?" It fetches a bounded ticket window and filters locally over subject, description text, tags, and string custom fields, which avoids noisy shell fallback scripts.
+
+## Assignment Helpers
+
+This repo now includes dedicated tools for assigned-ticket lookups:
+
+- `get_tickets_assigned_to_agent`
+- `get_tickets_assigned_to_agent_identifier`
+
+Examples:
+
+```text
+Use freshdesk.get_tickets_assigned_to_agent with agent_id=12345.
+```
+
+```text
+Use freshdesk.get_tickets_assigned_to_agent_identifier with agent_identifier="PuvaanRaaj".
+```
+
+`get_tickets_assigned_to_agent_identifier` is the more practical helper when you know the Freshdesk agent name or email but not the numeric Freshdesk agent ID.
+
+## Reply Workflow
+
+Replying is already supported, but intentionally split into read and send steps:
+
+- `get_ticket`
+- `get_ticket_conversation`
+- `get_ticket_context`
+- `create_ticket_reply`
+- `create_ticket_note`
+
+Typical flow:
+
+```text
+Use freshdesk.get_ticket_context with ticket_id=12345, summarize the issue, and draft a customer reply.
+```
+
+Then:
+
+```text
+Use freshdesk.create_ticket_reply with ticket_id=12345 and body="...".
+```
+
+That separation is deliberate. It keeps sending a reply as an explicit action instead of hiding it inside an automatic helper.
 
 ## Scheduler Setup Guides
 

@@ -9,7 +9,7 @@ class GetTicketContextTests(unittest.IsolatedAsyncioTestCase):
         mock_client = AsyncMock()
         mock_client.request = AsyncMock(
             side_effect=[
-                {"id": 42, "requester_id": 7, "company_id": 9},
+                {"id": 42, "requester_id": 7, "company_id": 9, "created_at": "2026-04-28T00:00:00Z"},
                 {"body": "summary"},
                 [{"id": 1, "body": "conversation"}],
                 {"id": 7, "name": "Requester"},
@@ -21,6 +21,7 @@ class GetTicketContextTests(unittest.IsolatedAsyncioTestCase):
             result = await server.get_ticket_context(ticket_id=42)
 
         self.assertEqual(result["ticket"]["id"], 42)
+        self.assertEqual(result["ticket"]["created_at"], "2026-04-28T08:00:00+08:00")
         self.assertEqual(result["summary"]["body"], "summary")
         self.assertEqual(result["conversations"][0]["id"], 1)
         self.assertEqual(result["requester"]["id"], 7)
@@ -39,7 +40,8 @@ class GetTicketContextTests(unittest.IsolatedAsyncioTestCase):
                 include_company=True,
             )
 
-        self.assertEqual(result, {"ticket": {"id": 42}})
+        self.assertEqual(result["ticket"]["id"], 42)
+        self.assertIn("/helpdesk/tickets/42", result["ticket"]["url"])
         self.assertEqual(mock_client.request.await_count, 1)
 
     async def test_get_optional_resource_returns_none_on_runtime_error(self) -> None:
@@ -92,6 +94,23 @@ class AutomationRuleTests(unittest.IsolatedAsyncioTestCase):
 
 
 class SearchHelperTests(unittest.IsolatedAsyncioTestCase):
+    def test_finalize_response_converts_datetime_fields_to_malaysia_timezone(self) -> None:
+        response = {
+            "created_at": "2026-04-28T00:00:00Z",
+            "nested": {
+                "updated_at": "2026-04-28T01:30:00+00:00",
+            },
+            "items": [
+                {"due_by": "2026-04-29T12:00:00Z"},
+            ],
+        }
+
+        result = server._finalize_response(response)
+
+        self.assertEqual(result["created_at"], "2026-04-28T08:00:00+08:00")
+        self.assertEqual(result["nested"]["updated_at"], "2026-04-28T09:30:00+08:00")
+        self.assertEqual(result["items"][0]["due_by"], "2026-04-29T20:00:00+08:00")
+
     async def test_search_tickets_by_type_builds_expected_query(self) -> None:
         mock_client = AsyncMock()
         mock_client.request = AsyncMock(return_value={"results": []})
@@ -161,6 +180,126 @@ class SearchHelperTests(unittest.IsolatedAsyncioTestCase):
                 "page": 4,
             },
         )
+
+    async def test_find_tickets_by_keywords_matches_created_window(self) -> None:
+        mock_client = AsyncMock()
+        mock_client.request = AsyncMock(
+            side_effect=[
+                [
+                    {
+                        "id": 10,
+                        "subject": "Merchant portal invalid captcha",
+                        "created_at": "2026-04-28T09:30:00Z",
+                        "updated_at": "2026-04-28T09:35:00Z",
+                        "status": 2,
+                        "priority": 1,
+                        "tags": ["merchant-portal"],
+                    },
+                    {
+                        "id": 11,
+                        "subject": "General login issue",
+                        "created_at": "2026-04-28T09:40:00Z",
+                        "updated_at": "2026-04-28T09:45:00Z",
+                        "status": 2,
+                        "priority": 1,
+                        "tags": [],
+                    },
+                ]
+            ]
+        )
+
+        with patch.object(server, "_client", return_value=mock_client):
+            result = await server.find_tickets_by_keywords(
+                keywords=["invalid captcha", "merchant portal"],
+                start_at="2026-04-28T00:00:00+00:00",
+                end_at="2026-04-28T23:59:59+00:00",
+                match_all=False,
+            )
+
+        self.assertEqual(result["match_count"], 1)
+        self.assertEqual(result["tickets"][0]["id"], 10)
+        self.assertIn("/helpdesk/tickets/10", result["tickets"][0]["url"])
+        mock_client.request.assert_awaited_once_with(
+            "GET",
+            "tickets",
+            params={"page": 1, "per_page": 100},
+        )
+
+    async def test_find_tickets_by_keywords_with_updated_window_uses_updated_since(self) -> None:
+        mock_client = AsyncMock()
+        mock_client.request = AsyncMock(return_value=[])
+
+        with patch.object(server, "_client", return_value=mock_client):
+            result = await server.find_tickets_by_keywords(
+                keywords=["captcha"],
+                start_at="2026-04-28T16:00:00+08:00",
+                time_field="updated_at",
+                page_limit=1,
+            )
+
+        self.assertEqual(result["match_count"], 0)
+        mock_client.request.assert_awaited_once_with(
+            "GET",
+            "tickets",
+            params={
+                "page": 1,
+                "per_page": 100,
+                "updated_since": "2026-04-28T16:00:00+08:00",
+            },
+        )
+
+    async def test_find_tickets_by_keywords_validates_inputs(self) -> None:
+        with self.assertRaises(ValueError):
+            await server.find_tickets_by_keywords([], start_at="2026-04-28T00:00:00+00:00")
+
+        with self.assertRaises(ValueError):
+            await server.find_tickets_by_keywords(
+                ["captcha"],
+                start_at="2026-04-28T00:00:00+00:00",
+                time_field="closed_at",
+            )
+
+    async def test_get_tickets_assigned_to_agent_builds_expected_query(self) -> None:
+        mock_client = AsyncMock()
+        mock_client.request = AsyncMock(return_value={"results": []})
+
+        with patch.object(server, "_client", return_value=mock_client):
+            result = await server.get_tickets_assigned_to_agent(agent_id=12345, status=2, priority=1, page=3)
+
+        self.assertEqual(result["agent_id"], 12345)
+        mock_client.request.assert_awaited_once_with(
+            "GET",
+            "search/tickets",
+            params={"query": "responder_id:12345 AND status:2 AND priority:1", "page": 3},
+        )
+
+    async def test_get_tickets_assigned_to_agent_identifier_resolves_and_queries(self) -> None:
+        mock_client = AsyncMock()
+        mock_client.request = AsyncMock(
+            side_effect=[
+                {"results": [{"id": 77, "name": "PuvaanRaaj", "email": "puvaan@example.com"}]},
+                {"results": [{"id": 9001, "subject": "Assigned ticket"}]},
+            ]
+        )
+
+        with patch.object(server, "_client", return_value=mock_client):
+            result = await server.get_tickets_assigned_to_agent_identifier("PuvaanRaaj")
+
+        self.assertEqual(result["matched_agent"]["id"], 77)
+        self.assertEqual(result["agent_id"], 77)
+        self.assertEqual(result["results"][0]["id"], 9001)
+        self.assertEqual(mock_client.request.await_count, 2)
+
+    async def test_get_tickets_assigned_to_agent_identifier_returns_candidates_on_no_match(self) -> None:
+        mock_client = AsyncMock()
+        mock_client.request = AsyncMock(return_value={"results": [{"id": 99, "name": "Someone Else"}]})
+
+        with patch.object(server, "_client", return_value=mock_client):
+            result = await server.get_tickets_assigned_to_agent_identifier("PuvaanRaaj")
+
+        self.assertIsNone(result["matched_agent"])
+        self.assertEqual(result["tickets"], [])
+        self.assertEqual(result["candidate_agents"][0]["id"], 99)
 
 
 if __name__ == "__main__":
