@@ -28,7 +28,7 @@ All datetime fields returned by this MCP are normalized to Malaysia time (`GMT+8
 
 Examples for `FRESHDESK_DOMAIN`:
 
-- `razer-support`
+- `yourcompany`
 - `yourcompany.freshdesk.com`
 - `https://yourcompany.freshdesk.com`
 
@@ -38,13 +38,13 @@ You can keep the credentials in a `.env` file at the repo root. Start from [.env
 
 ```dotenv
 FRESHDESK_API_KEY=your_api_key
-FRESHDESK_DOMAIN=razer-support
+FRESHDESK_DOMAIN=yourcompany
 FRESHDESK_TIMEOUT_SECONDS=30
 ```
 
 When you start `freshdesk-mcp`, it will load that `.env` file automatically.
 
-If `FRESHDESK_DOMAIN` is a bare subdomain such as `razer-support`, the server expands it to `https://razer-support.freshdesk.com`.
+If `FRESHDESK_DOMAIN` is a bare subdomain such as `yourcompany`, the server expands it to `https://yourcompany.freshdesk.com`.
 
 ### Option 2: Shell Environment
 
@@ -52,7 +52,7 @@ If you prefer shell variables:
 
 ```bash
 export FRESHDESK_API_KEY="your_api_key"
-export FRESHDESK_DOMAIN="razer-support"
+export FRESHDESK_DOMAIN="yourcompany"
 export FRESHDESK_TIMEOUT_SECONDS="30"
 ```
 
@@ -153,7 +153,7 @@ Make sure the repo root contains a `.env` file first. You can copy [.env.example
 
 ```dotenv
 FRESHDESK_API_KEY=your_api_key
-FRESHDESK_DOMAIN=razer-support
+FRESHDESK_DOMAIN=yourcompany
 FRESHDESK_TIMEOUT_SECONDS=30
 ```
 

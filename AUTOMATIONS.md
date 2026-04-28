@@ -53,10 +53,10 @@ uv sync
 
 ```bash
 export FRESHDESK_API_KEY="your_api_key"
-export FRESHDESK_DOMAIN="razer-support"
+export FRESHDESK_DOMAIN="yourcompany"
 ```
 
-The bare subdomain form is supported and resolves to `https://razer-support.freshdesk.com`.
+The bare subdomain form is supported and resolves to `https://yourcompany.freshdesk.com`.
 
 3. Add the MCP server to Claude Desktop.
 
